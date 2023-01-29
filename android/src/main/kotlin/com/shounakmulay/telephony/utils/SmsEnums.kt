@@ -8,6 +8,8 @@ enum class SmsAction(private val methodName: String) {
   GET_SENT("getAllSentSms"),
   GET_DRAFT("getAllDraftSms"),
   GET_CONVERSATIONS("getAllConversations"),
+  GET_CONTACTS("getAllContacts"),
+  GET_CONTACT_FROM_PHONE("getContactFromPhone"),
   SEND_SMS("sendSms"),
   SEND_MULTIPART_SMS("sendMultipartSms"),
   SEND_SMS_INTENT("sendSmsIntent"),
@@ -52,6 +54,8 @@ enum class SmsAction(private val methodName: String) {
       GET_SENT,
       GET_DRAFT,
       GET_CONVERSATIONS -> ActionType.GET_SMS
+      GET_CONTACTS,
+      GET_CONTACT_FROM_PHONE -> ActionType.GET_CONTACTS
       SEND_SMS,
       SEND_MULTIPART_SMS,
       SEND_SMS_INTENT,
@@ -83,7 +87,7 @@ enum class SmsAction(private val methodName: String) {
 }
 
 enum class ActionType {
-  GET_SMS, SEND_SMS, BACKGROUND, GET, PERMISSION, CALL
+  GET_SMS, GET_CONTACTS, SEND_SMS, BACKGROUND, GET, PERMISSION, CALL
 }
 
 enum class ContentUri(val uri: Uri) {

@@ -15,8 +15,9 @@ import com.shounakmulay.telephony.utils.Constants
 import com.shounakmulay.telephony.utils.Constants.ADDRESS
 import com.shounakmulay.telephony.utils.Constants.BACKGROUND_HANDLE
 import com.shounakmulay.telephony.utils.Constants.CALL_REQUEST_CODE
-import com.shounakmulay.telephony.utils.Constants.DEFAULT_CONVERSATION_PROJECTION
 import com.shounakmulay.telephony.utils.Constants.DEFAULT_SMS_PROJECTION
+import com.shounakmulay.telephony.utils.Constants.DEFAULT_CONVERSATION_PROJECTION
+import com.shounakmulay.telephony.utils.Constants.CONTACT_QUERY_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.FAILED_FETCH
 import com.shounakmulay.telephony.utils.Constants.GET_STATUS_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.ILLEGAL_ARGUMENT
@@ -25,6 +26,8 @@ import com.shounakmulay.telephony.utils.Constants.MESSAGE_BODY
 import com.shounakmulay.telephony.utils.Constants.PERMISSION_DENIED
 import com.shounakmulay.telephony.utils.Constants.PERMISSION_DENIED_MESSAGE
 import com.shounakmulay.telephony.utils.Constants.PERMISSION_REQUEST_CODE
+import com.shounakmulay.telephony.utils.Constants.PHONE
+import com.shounakmulay.telephony.utils.Constants.INCLUDE_THUMBNAIL
 import com.shounakmulay.telephony.utils.Constants.PHONE_NUMBER
 import com.shounakmulay.telephony.utils.Constants.PROJECTION
 import com.shounakmulay.telephony.utils.Constants.SELECTION
@@ -44,6 +47,7 @@ import com.shounakmulay.telephony.utils.SmsAction
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.PluginRegistry
+import java.lang.IllegalArgumentException
 
 
 class SmsMethodCallHandler(
@@ -63,6 +67,8 @@ class SmsMethodCallHandler(
   private var selection: String? = null
   private var selectionArgs: List<String>? = null
   private var sortOrder: String? = null
+  private var includeThumbnail: Boolean? = false
+  private var phone: String? = null
 
   private lateinit var messageBody: String
   private lateinit var address: String
@@ -93,6 +99,12 @@ class SmsMethodCallHandler(
         sortOrder = call.argument(SORT_ORDER)
 
         handleMethod(action, SMS_QUERY_REQUEST_CODE)
+      }
+      ActionType.GET_CONTACTS -> {
+        includeThumbnail = call.argument(INCLUDE_THUMBNAIL)
+        phone = call.argument(PHONE)
+
+        handleMethod(action, CONTACT_QUERY_REQUEST_CODE)
       }
       ActionType.SEND_SMS -> {
         if (call.hasArgument(MESSAGE_BODY)
@@ -158,6 +170,7 @@ class SmsMethodCallHandler(
       when (smsAction.toActionType()) {
         ActionType.GET_SMS -> handleGetSmsActions(smsAction)
         ActionType.SEND_SMS -> handleSendSmsActions(smsAction)
+        ActionType.GET_CONTACTS -> handleGetContactsActions(smsAction)
         ActionType.BACKGROUND -> handleBackgroundActions(smsAction)
         ActionType.GET -> handleGetActions(smsAction)
         ActionType.PERMISSION -> result.success(true)
@@ -197,6 +210,21 @@ class SmsMethodCallHandler(
       SmsAction.SEND_SMS -> smsController.sendSms(address, messageBody, listenStatus)
       SmsAction.SEND_MULTIPART_SMS -> smsController.sendMultipartSms(address, messageBody, listenStatus)
       SmsAction.SEND_SMS_INTENT -> smsController.sendSmsIntent(address, messageBody)
+      else -> throw IllegalArgumentException()
+    }
+    result.success(null)
+  }
+
+  private fun handleGetContactsActions(smsAction: SmsAction) {
+    when (smsAction) {
+      SmsAction.GET_CONTACTS -> {
+        result.success(smsController.getContacts(includeThumbnail!!))
+        return
+      }
+      SmsAction.GET_CONTACT_FROM_PHONE -> {
+        result.success(smsController.getContactFromPhone(phone!!, includeThumbnail!!))
+        return
+      }
       else -> throw IllegalArgumentException()
     }
     result.success(null)
@@ -301,22 +329,27 @@ class SmsMethodCallHandler(
       SmsAction.DISABLE_BACKGROUND_SERVICE,
       SmsAction.REQUEST_SMS_PERMISSIONS -> {
         val permissions = permissionsController.getSmsPermissions()
-        return checkOrRequestPermission(permissions, requestCode)
+        return _checkOrRequestPermission(permissions, requestCode)
+      }
+      SmsAction.GET_CONTACTS,
+      SmsAction.GET_CONTACT_FROM_PHONE -> {
+        val permissions = permissionsController.getContactsPermissions()
+        return _checkOrRequestPermission(permissions, requestCode)
       }
       SmsAction.GET_DATA_NETWORK_TYPE,
       SmsAction.OPEN_DIALER,
       SmsAction.DIAL_PHONE_NUMBER,
       SmsAction.REQUEST_PHONE_PERMISSIONS -> {
         val permissions = permissionsController.getPhonePermissions()
-        return checkOrRequestPermission(permissions, requestCode)
+        return _checkOrRequestPermission(permissions, requestCode)
       }
       SmsAction.GET_SERVICE_STATE -> {
         val permissions = permissionsController.getServiceStatePermissions()
-        return checkOrRequestPermission(permissions, requestCode)
+        return _checkOrRequestPermission(permissions, requestCode)
       }
       SmsAction.REQUEST_PHONE_AND_SMS_PERMISSIONS -> {
         val permissions = listOf(permissionsController.getSmsPermissions(), permissionsController.getPhonePermissions()).flatten()
-        return checkOrRequestPermission(permissions, requestCode)
+        return _checkOrRequestPermission(permissions, requestCode)
       }
       SmsAction.IS_SMS_CAPABLE,
       SmsAction.GET_CELLULAR_DATA_STATE,
@@ -339,7 +372,7 @@ class SmsMethodCallHandler(
   }
 
   @RequiresApi(Build.VERSION_CODES.M)
-  private fun checkOrRequestPermission(permissions: List<String>, requestCode: Int): Boolean {
+  private fun _checkOrRequestPermission(permissions: List<String>, requestCode: Int): Boolean {
     permissionsController.apply {
       
       if (!::activity.isInitialized) {

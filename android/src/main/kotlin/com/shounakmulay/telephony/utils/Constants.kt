@@ -2,6 +2,7 @@ package com.shounakmulay.telephony.utils
 
 import android.Manifest
 import android.provider.Telephony
+import android.provider.ContactsContract
 
 object Constants {
   
@@ -19,6 +20,7 @@ object Constants {
   val SMS_PERMISSIONS = listOf(Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS, Manifest.permission.RECEIVE_SMS)
   val PHONE_PERMISSIONS = listOf(Manifest.permission.READ_PHONE_STATE, Manifest.permission.CALL_PHONE)
   val SERVICE_STATE_PERMISSIONS = listOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.READ_PHONE_STATE)
+  val CONTACT_PERMISSIONS = listOf(Manifest.permission.READ_CONTACTS/*, Manifest.permission.WRITE_CONTACTS*/)
 
   // Request Codes
   const val SMS_QUERY_REQUEST_CODE = 1
@@ -29,6 +31,7 @@ object Constants {
   const val GET_STATUS_REQUEST_CODE = 41
   const val PERMISSION_REQUEST_CODE = 51
   const val CALL_REQUEST_CODE = 61
+  const val CONTACT_QUERY_REQUEST_CODE = 71
 
   // Methods
   const val ON_MESSAGE = "onMessage"
@@ -49,6 +52,8 @@ object Constants {
   const val ADDRESS = "address"
   const val LISTEN_STATUS = "listen_status"
   const val SERVICE_CENTER_ADDRESS = "service_center"
+  const val INCLUDE_THUMBNAIL = "include_thumbnail"
+  const val PHONE = "phone"
 
   const val TIMESTAMP = "timestamp"
   const val ORIGINATING_ADDRESS = "originating_address"
@@ -62,7 +67,7 @@ object Constants {
   // Projections
   val DEFAULT_SMS_PROJECTION = listOf(Telephony.Sms._ID, Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE)
   val DEFAULT_CONVERSATION_PROJECTION = listOf(Telephony.Sms.Conversations.THREAD_ID ,Telephony.Sms.Conversations.SNIPPET, Telephony.Sms.Conversations.MESSAGE_COUNT)
-  
+  val DEFAULT_CONTACT_PROJECTION = arrayOf(ContactsContract.Contacts._ID, ContactsContract.Data.CONTACT_ID, ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER)
 
   // Strings
   const val PERMISSION_DENIED = "permission_denied"

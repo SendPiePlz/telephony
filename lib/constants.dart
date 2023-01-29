@@ -32,6 +32,9 @@ const REQUEST_PHONE_AND_SMS_PERMISSION = "requestPhoneAndSmsPermissions";
 const OPEN_DIALER = "openDialer";
 const DIAL_PHONE_NUMBER = "dialPhoneNumber";
 
+const GET_ALL_CONTACTS = "getAllContacts";
+const GET_CONTACT_FROM_PHONE = "getContactFromPhone";
+
 const ON_MESSAGE = "onMessage";
 const SMS_SENT = "smsSent";
 const SMS_DELIVERED = "smsDelivered";

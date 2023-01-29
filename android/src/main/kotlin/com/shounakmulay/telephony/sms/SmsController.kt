@@ -9,6 +9,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.provider.BaseColumns
+import android.provider.ContactsContract
 import android.telephony.*
 import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
@@ -20,8 +22,10 @@ import com.shounakmulay.telephony.utils.Constants.SMS_BODY
 import com.shounakmulay.telephony.utils.Constants.SMS_DELIVERED_BROADCAST_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.SMS_SENT_BROADCAST_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.SMS_TO
+import com.shounakmulay.telephony.utils.Constants.DEFAULT_CONTACT_PROJECTION
 import com.shounakmulay.telephony.utils.ContentUri
 import java.lang.RuntimeException
+import java.util.HashMap
 
 
 class SmsController(private val context: Context) {
@@ -57,6 +61,81 @@ class SmsController(private val context: Context) {
         }
         cursor?.close()
         return messages
+    }
+
+    // https://github.com/EddieKamau/sms_advanced/blob/master/android/src/main/kotlin/com/elyudde/sms_advanced/ContactQuery.kt
+    // https://developer.android.com/reference/kotlin/android/provider/ContactsContract.PhoneLookup
+    // https://developer.android.com/reference/kotlin/android/provider/ContactsContract.Data
+    fun getContacts(includeThumbnail: Boolean): List<HashMap<String, Any?>> {
+        val mapSize = if (includeThumbnail) 3 else 2
+        val contacts = mutableListOf<HashMap<String, Any?>>()
+        val cursor = context.contentResolver.query(ContactsContract.Data.CONTENT_URI, DEFAULT_CONTACT_PROJECTION, null, null, null) // TODO: sortOrder
+
+        // retrieve all contacts
+        // TODO: possibly need fixing
+        while (cursor != null && cursor.moveToNext()) {
+            val contact = HashMap<String, Any?>(mapSize)
+            contact["displayName"] = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME))
+            contact["phone"] = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER))
+            
+            // retrieve thumbnail
+            if (includeThumbnail) {
+                val contactId = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts._ID))
+                contact["thumbnail"] = getContactThumbnail(contactId)
+            }
+
+            contacts.add(contact)
+        }
+        cursor?.close()
+        return contacts
+    }
+
+    // https://github.com/lukasgit/flutter_contacts/blob/master/android/src/main/java/flutter/plugins/contactsservice/contactsservice/ContactsServicePlugin.java#L525
+    fun getContactFromPhone(phone: String, includeThumbnail: Boolean): HashMap<String, Any?>? {
+        if (phone.length < 5) return null
+        val mapSize = if (includeThumbnail) 3 else 2
+        val contact = HashMap<String, Any?>(mapSize)
+        val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phone))
+        val cursor = context.contentResolver.query(uri, arrayOf(ContactsContract.PhoneLookup.CONTACT_ID), null, null, null)
+
+        // retrieve contact ID associated with the phone number
+        if (cursor != null && cursor.moveToFirst()) {
+            val contactId = cursor.getString(cursor.getColumnIndex(ContactsContract.PhoneLookup.CONTACT_ID)).toString()
+            val projection = arrayOf(ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER)
+            var selection = ContactsContract.Data.CONTACT_ID + " = " + contactId
+            val cursor2 = context.contentResolver.query(ContactsContract.Data.CONTENT_URI, projection, selection, null, null)
+
+            // retrieve contact details
+            if (cursor2 != null && cursor2.moveToFirst()) {
+                contact["displayName"] = cursor2.getString(cursor2.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME))
+                contact["phone"] = cursor2.getString(cursor2.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER))
+                
+                // retrieve thumbnail
+                if (includeThumbnail) {
+                    contact["thumbnail"] = getContactThumbnail(contactId)
+                }
+            }
+            cursor2?.close()
+        }
+        cursor?.close()
+
+        if (contact.isEmpty()) return null
+        else return contact
+    }
+
+    // https://developer.android.com/reference/kotlin/android/provider/ContactsContract.Contacts.Photo
+    fun getContactThumbnail(contactId: String): ByteArray? {
+        var blob: ByteArray? = null
+        val contactUri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI, contactId)
+        val uri = Uri.withAppendedPath(contactUri, ContactsContract.Contacts.Photo.CONTENT_DIRECTORY)
+        val projection = arrayOf(ContactsContract.Contacts.Photo.PHOTO)
+        val cursor = context.contentResolver.query(uri, projection, null, null,null)
+        
+        if (cursor != null && cursor.moveToFirst()) {
+            blob = cursor.getBlob(0)
+        }
+        cursor?.close()
+        return blob
     }
 
     // SEND SMS

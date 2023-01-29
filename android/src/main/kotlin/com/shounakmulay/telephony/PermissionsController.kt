@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import com.shounakmulay.telephony.utils.Constants.PHONE_PERMISSIONS
 import com.shounakmulay.telephony.utils.Constants.SERVICE_STATE_PERMISSIONS
 import com.shounakmulay.telephony.utils.Constants.SMS_PERMISSIONS
+import com.shounakmulay.telephony.utils.Constants.CONTACT_PERMISSIONS
 
 class PermissionsController(private val context: Context) {
 
@@ -48,6 +49,11 @@ class PermissionsController(private val context: Context) {
   fun getServiceStatePermissions(): List<String> {
     val permissions = getListedPermissions()
     return permissions.filter { permission -> SERVICE_STATE_PERMISSIONS.contains(permission) }
+  }
+
+  fun getContactsPermissions(): List<String> {
+    val permissions = getListedPermissions()
+    return permissions.filter { permission -> CONTACT_PERMISSIONS.contains(permission) }
   }
 
   private fun getListedPermissions(): Array<out String> {

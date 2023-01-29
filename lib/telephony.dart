@@ -27,8 +27,8 @@ void _flutterSmsSetupBackgroundChannel(
         await handlerFunction(SmsMessage.fromMap(
             call.arguments['message'], INCOMING_SMS_COLUMNS));
       } catch (e) {
-        print('Unable to handle incoming background message.');
-        print(e);
+        debugPrint('Unable to handle incoming background message.');
+        debugPrint(e.toString());
       }
       return Future<void>.value();
     }
@@ -269,6 +269,35 @@ class Telephony {
         List.empty();
   }
 
+  ///
+  Future<List<Contact>> getContacts({bool includeThumbnail = true}) async {
+    assert(_platform.isAndroid == true, "Can only be called on Android.");
+    final Map<String, dynamic> args = {"include_thumbnail": includeThumbnail,};
+    final contacts = await _foregroundChannel.invokeMethod<List?>(
+        GET_ALL_CONTACTS, args);
+
+    return contacts
+        ?.map((contact) => Contact.fromMap(contact, includeThumbnail))
+        .toList(growable: false) ??
+        List.empty();
+  }
+
+  ///
+  Future<Contact?> getContactFromPhone(String phone, {bool includeThumbnail = true}) async {
+    assert(_platform.isAndroid == true, "Can only be called on Android.");
+    final Map<String, dynamic> args = {
+      "include_thumbnail": includeThumbnail,
+      "phone": phone,
+    };
+    final contact = await _foregroundChannel.invokeMethod<Map?>(GET_CONTACT_FROM_PHONE, args);
+    
+    if (contact != null) {
+      return Contact.fromMap(contact, includeThumbnail);
+    }
+    return null;
+  }
+
+  ///
   Map<String, dynamic> _getArguments(List<_TelephonyColumn> columns,
       Filter? filter, List<OrderBy>? sortOrder) {
     final Map<String, dynamic> args = {};
@@ -580,7 +609,7 @@ class SmsMessage {
   SmsMessage.fromMap(Map rawMessage, List<SmsColumn> columns) {
     final message = Map.castFrom<dynamic, dynamic, String, dynamic>(rawMessage);
     for (var column in columns) {
-      debugPrint('Column is ${column._columnName}');
+      //debugPrint('Column is ${column._columnName}');
       final value = message[column._columnName];
       switch (column._columnName) {
         case _SmsProjections.ID:
@@ -695,8 +724,30 @@ class SmsConversation {
   /// ## Do not call this method. This method is visible only for testing.
   @visibleForTesting
   bool equals(SmsConversation other) {
-    return this.threadId == other.threadId &&
-        this.snippet == other.snippet &&
-        this.messageCount == other.messageCount;
+    return this.threadId     == other.threadId &&
+           this.snippet      == other.snippet  &&
+           this.messageCount == other.messageCount;
+  }
+}
+
+///
+/// Represents a conversation returned by the query conversation functions
+/// [getContacts]
+class Contact {
+  //String? id;
+  String? displayName;
+  String? phone;
+  Uint8List? thumbnail;
+
+  // TODO: getters
+
+  Contact.fromMap(Map rawContact, bool includeThumbnail) {
+    final contact = Map.castFrom<dynamic, dynamic, String, dynamic>(rawContact);
+    //this.id = contact['id'];
+    this.displayName = contact['displayName'];
+    this.phone = contact['phone'];
+    if (includeThumbnail) {
+      this.thumbnail = contact['thumbnail'];
+    }
   }
 }
