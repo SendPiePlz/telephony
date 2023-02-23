@@ -16,6 +16,7 @@ import com.shounakmulay.telephony.utils.Constants.ADDRESS
 import com.shounakmulay.telephony.utils.Constants.BACKGROUND_HANDLE
 import com.shounakmulay.telephony.utils.Constants.CALL_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.DEFAULT_SMS_PROJECTION
+import com.shounakmulay.telephony.utils.Constants.SPECIAL_SMS_PROJECTION
 import com.shounakmulay.telephony.utils.Constants.DEFAULT_CONVERSATION_PROJECTION
 import com.shounakmulay.telephony.utils.Constants.CONTACT_QUERY_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.FAILED_FETCH
@@ -100,6 +101,12 @@ class SmsMethodCallHandler(
 
         handleMethod(action, SMS_QUERY_REQUEST_CODE)
       }
+      ActionType.MARK_SMS -> {
+        selection = call.argument(SELECTION)
+        selectionArgs = call.argument(SELECTION_ARGS)
+
+        handleMethod(action, SMS_QUERY_REQUEST_CODE)
+      }
       ActionType.GET_CONTACTS -> {
         includeThumbnail = call.argument(INCLUDE_THUMBNAIL)
         phone = call.argument(PHONE)
@@ -170,6 +177,7 @@ class SmsMethodCallHandler(
       when (smsAction.toActionType()) {
         ActionType.GET_SMS -> handleGetSmsActions(smsAction)
         ActionType.SEND_SMS -> handleSendSmsActions(smsAction)
+        ActionType.MARK_SMS -> handleMarkSmsActions(smsAction)
         ActionType.GET_CONTACTS -> handleGetContactsActions(smsAction)
         ActionType.BACKGROUND -> handleBackgroundActions(smsAction)
         ActionType.GET -> handleGetActions(smsAction)
@@ -188,14 +196,23 @@ class SmsMethodCallHandler(
       projection = if (smsAction == SmsAction.GET_CONVERSATIONS) DEFAULT_CONVERSATION_PROJECTION else DEFAULT_SMS_PROJECTION
     }
     val contentUri = when (smsAction) {
+      SmsAction.GET_ALL_SMS -> ContentUri.ALL_SMS
       SmsAction.GET_INBOX -> ContentUri.INBOX
       SmsAction.GET_SENT -> ContentUri.SENT
       SmsAction.GET_DRAFT -> ContentUri.DRAFT
-      SmsAction.GET_CONVERSATIONS -> ContentUri.CONVERSATIONS
+      SmsAction.GET_CONVERSATIONS,
+      SmsAction.GET_CONVERSATION_FROM_PHONE -> ContentUri.CONVERSATIONS
       else -> throw IllegalArgumentException()
     }
-    val messages = smsController.getMessages(contentUri, projection!!, selection, selectionArgs, sortOrder)
-    result.success(messages)
+    if (smsAction == SmsAction.GET_CONVERSATION_FROM_PHONE) {
+      val conversation = smsController.getConversationFromPhone(selection!!, selectionArgs!!)
+      result.success(conversation)
+    }
+    else {
+      val messages = smsController.getMessages(contentUri, projection!!, selection, selectionArgs, sortOrder)
+
+      result.success(messages)
+    }
   }
 
   private fun handleSendSmsActions(smsAction: SmsAction) {
@@ -210,6 +227,20 @@ class SmsMethodCallHandler(
       SmsAction.SEND_SMS -> smsController.sendSms(address, messageBody, listenStatus)
       SmsAction.SEND_MULTIPART_SMS -> smsController.sendMultipartSms(address, messageBody, listenStatus)
       SmsAction.SEND_SMS_INTENT -> smsController.sendSmsIntent(address, messageBody)
+      else -> throw IllegalArgumentException()
+    }
+    result.success(null)
+  }
+
+  private fun handleMarkSmsActions(smsAction: SmsAction) {
+    if (selection == null || selectionArgs == null) {
+      throw IllegalArgumentException()
+    }
+    when (smsAction) {
+      SmsAction.MARK_SMS_AS_READ -> {
+        smsController.markMessagesAsRead(SPECIAL_SMS_PROJECTION, selection!!, selectionArgs!!)
+        // return
+      }
       else -> throw IllegalArgumentException()
     }
     result.success(null)
@@ -317,10 +348,13 @@ class SmsMethodCallHandler(
     this.action = smsAction
     this.requestCode = requestCode
     when (smsAction) {
+      SmsAction.GET_ALL_SMS,
       SmsAction.GET_INBOX,
       SmsAction.GET_SENT,
       SmsAction.GET_DRAFT,
+      SmsAction.MARK_SMS_AS_READ,
       SmsAction.GET_CONVERSATIONS,
+      SmsAction.GET_CONVERSATION_FROM_PHONE,
       SmsAction.SEND_SMS,
       SmsAction.SEND_MULTIPART_SMS,
       SmsAction.SEND_SMS_INTENT,
@@ -380,7 +414,7 @@ class SmsMethodCallHandler(
       }
       
       if (!hasRequiredPermissions(permissions)) {
-        requestPermissions(activity, permissions, requestCode)
+        // requestPermissions(activity, permissions, requestCode)
         return false
       }
       return true

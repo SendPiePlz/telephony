@@ -5,12 +5,14 @@ import android.Manifest.permission.READ_PHONE_STATE
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
+import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.BaseColumns
 import android.provider.ContactsContract
+import android.provider.Telephony
 import android.telephony.*
 import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
@@ -23,9 +25,11 @@ import com.shounakmulay.telephony.utils.Constants.SMS_DELIVERED_BROADCAST_REQUES
 import com.shounakmulay.telephony.utils.Constants.SMS_SENT_BROADCAST_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.SMS_TO
 import com.shounakmulay.telephony.utils.Constants.DEFAULT_CONTACT_PROJECTION
+import com.shounakmulay.telephony.utils.Constants.DEFAULT_CONVERSATION_PROJECTION
 import com.shounakmulay.telephony.utils.ContentUri
 import java.lang.RuntimeException
 import java.util.HashMap
+import kotlin.collections.HashSet
 
 
 class SmsController(private val context: Context) {
@@ -53,8 +57,7 @@ class SmsController(private val context: Context) {
             for (columnName in cursor.columnNames) {
                 val columnIndex = cursor.getColumnIndex(columnName)
                 if (columnIndex >= 0) {
-                    val value = cursor.getString(columnIndex)
-                    dataObject[columnName] = value
+                    dataObject[columnName] = cursor.getString(columnIndex)
                 }
             }
             messages.add(dataObject)
@@ -63,28 +66,102 @@ class SmsController(private val context: Context) {
         return messages
     }
 
+    //
+    fun getConversationFromPhone(
+        selection: String,
+        selectionArgs: List<String>
+    ): HashMap<String, String?>? {
+        val conversation = HashMap<String, String?>(3)
+        val cursor = context.contentResolver.query(
+            Telephony.Sms.CONTENT_URI,
+            arrayOf(Telephony.Sms.THREAD_ID, Telephony.Sms.ADDRESS),
+            selection,
+            selectionArgs.toTypedArray(),
+            null
+        )
+        if (cursor != null && cursor.moveToFirst()) {
+            val threadId = cursor.getString(cursor.getColumnIndex(Telephony.Sms.THREAD_ID))
+            cursor.close()
+            val cursor2 = context.contentResolver.query(
+                Telephony.Sms.Conversations.CONTENT_URI,
+                DEFAULT_CONVERSATION_PROJECTION.toTypedArray(),
+                Telephony.Sms.Conversations.THREAD_ID + "=?",
+                arrayOf(threadId),
+                null
+            )
+            if (cursor2 != null && cursor2.moveToFirst()) {
+                for (columnName in cursor2.columnNames) {
+                    val columnIndex = cursor2.getColumnIndex(columnName)
+                    if (columnIndex >= 0) {
+                        conversation[columnName] = cursor2.getString(columnIndex)
+                    }
+                }
+                cursor2.close()
+                return conversation
+            }
+            cursor2?.close()
+        }
+        cursor?.close()
+        return null
+    }
+
+    // https://stackoverflow.com/a/7417523
+    // Requires the app the be the default messaging app.
+    fun markMessagesAsRead(
+        projection: List<String>,
+        selection: String,
+        selectionArgs: List<String>
+    ) {
+        val cursor = context.contentResolver.query(
+            Telephony.Sms.Inbox.CONTENT_URI,
+            projection.toTypedArray(),
+            selection,
+            selectionArgs.toTypedArray(),
+            null
+        )
+        // val uri = Uri.parse("content://sms/")
+        var values = ContentValues(1)
+        values.put("read", true)
+
+        while (cursor != null && cursor.moveToNext()) {
+            context.getContentResolver().update(
+                Telephony.Sms.Inbox.CONTENT_URI,
+                values,
+                "_id=?",
+                arrayOf(cursor.getString(0))
+            )
+        }
+        cursor?.close()
+    }
+
     // https://github.com/EddieKamau/sms_advanced/blob/master/android/src/main/kotlin/com/elyudde/sms_advanced/ContactQuery.kt
     // https://developer.android.com/reference/kotlin/android/provider/ContactsContract.PhoneLookup
     // https://developer.android.com/reference/kotlin/android/provider/ContactsContract.Data
     fun getContacts(includeThumbnail: Boolean): List<HashMap<String, Any?>> {
         val mapSize = if (includeThumbnail) 3 else 2
         val contacts = mutableListOf<HashMap<String, Any?>>()
-        val cursor = context.contentResolver.query(ContactsContract.Data.CONTENT_URI, DEFAULT_CONTACT_PROJECTION, null, null, null) // TODO: sortOrder
+        val selection = ContactsContract.Contacts.HAS_PHONE_NUMBER + ">0"
+        val sortOrder = ContactsContract.Contacts.DISPLAY_NAME + " ASC"
+        val cursor = context.contentResolver.query(ContactsContract.Data.CONTENT_URI, DEFAULT_CONTACT_PROJECTION, selection, null, sortOrder)
+        val past = HashSet<String>(cursor?.getCount() ?: 0)
 
-        // retrieve all contacts
-        // TODO: possibly need fixing
+        // Retrieve all contacts
         while (cursor != null && cursor.moveToNext()) {
             val contact = HashMap<String, Any?>(mapSize)
-            contact["displayName"] = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME))
-            contact["phone"] = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER))
-            
-            // retrieve thumbnail
-            if (includeThumbnail) {
-                val contactId = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts._ID))
-                contact["thumbnail"] = getContactThumbnail(contactId)
-            }
+            val displayName = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME))
+            // Filter out duplicates
+            if (!past.contains(displayName)) {
+                contact["displayName"] = displayName
+                contact["phone"] = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER))
 
-            contacts.add(contact)
+                // retrieve thumbnail
+                if (includeThumbnail) {
+                    val contactId = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts._ID))
+                    contact["thumbnail"] = getContactThumbnail(contactId)
+                }
+                past.add(displayName)
+                contacts.add(contact)
+            }
         }
         cursor?.close()
         return contacts
@@ -124,7 +201,7 @@ class SmsController(private val context: Context) {
     }
 
     // https://developer.android.com/reference/kotlin/android/provider/ContactsContract.Contacts.Photo
-    fun getContactThumbnail(contactId: String): ByteArray? {
+    private fun getContactThumbnail(contactId: String): ByteArray? {
         var blob: ByteArray? = null
         val contactUri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI, contactId)
         val uri = Uri.withAppendedPath(contactUri, ContactsContract.Contacts.Photo.CONTENT_DIRECTORY)

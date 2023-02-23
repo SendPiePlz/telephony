@@ -189,7 +189,7 @@ class ConversationFilterStatement
 
 class OrderBy {
   final _TelephonyColumn _column;
-  Sort _sort = Sort.DESC;
+  late Sort _sort = Sort.DESC;
 
   /// Orders the query results by the provided column and [sort] value.
   OrderBy(this._column, {Sort sort = Sort.DESC}) {

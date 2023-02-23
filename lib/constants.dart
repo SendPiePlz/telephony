@@ -5,10 +5,13 @@ const _BACKGROUND_CHANNEL = 'plugins.shounakmulay.com/background_sms_channel';
 
 const HANDLE_BACKGROUND_MESSAGE = "handleBackgroundMessage";
 const BACKGROUND_SERVICE_INITIALIZED = "backgroundServiceInitialized";
+const GET_ALL_SMS = "getAllSms";
 const GET_ALL_INBOX_SMS = "getAllInboxSms";
 const GET_ALL_SENT_SMS = "getAllSentSms";
 const GET_ALL_DRAFT_SMS = "getAllDraftSms";
+const MARK_SMS_AS_READ = "markSmsAsRead";
 const GET_ALL_CONVERSATIONS = "getAllConversations";
+const GET_CONVERSATION_FROM_PHONE = "getConversationFromPhone";
 const SEND_SMS = "sendSms";
 const SEND_MULTIPART_SMS = "sendMultipartSms";
 const SEND_SMS_INTENT = "sendSmsIntent";

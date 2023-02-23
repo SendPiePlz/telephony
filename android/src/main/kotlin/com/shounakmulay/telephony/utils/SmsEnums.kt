@@ -4,10 +4,13 @@ import android.net.Uri
 import android.provider.Telephony
 
 enum class SmsAction(private val methodName: String) {
+  GET_ALL_SMS("getAllSms"),
   GET_INBOX("getAllInboxSms"),
   GET_SENT("getAllSentSms"),
   GET_DRAFT("getAllDraftSms"),
+  MARK_SMS_AS_READ("markSmsAsRead"),
   GET_CONVERSATIONS("getAllConversations"),
+  GET_CONVERSATION_FROM_PHONE("getConversationFromPhone"),
   GET_CONTACTS("getAllContacts"),
   GET_CONTACT_FROM_PHONE("getContactFromPhone"),
   SEND_SMS("sendSms"),
@@ -50,10 +53,13 @@ enum class SmsAction(private val methodName: String) {
 
   fun toActionType(): ActionType {
     return when (this) {
+      GET_ALL_SMS,
       GET_INBOX,
       GET_SENT,
       GET_DRAFT,
-      GET_CONVERSATIONS -> ActionType.GET_SMS
+      GET_CONVERSATIONS,
+      GET_CONVERSATION_FROM_PHONE -> ActionType.GET_SMS
+      MARK_SMS_AS_READ -> ActionType.MARK_SMS
       GET_CONTACTS,
       GET_CONTACT_FROM_PHONE -> ActionType.GET_CONTACTS
       SEND_SMS,
@@ -87,10 +93,11 @@ enum class SmsAction(private val methodName: String) {
 }
 
 enum class ActionType {
-  GET_SMS, GET_CONTACTS, SEND_SMS, BACKGROUND, GET, PERMISSION, CALL
+  GET_SMS, MARK_SMS, GET_CONTACTS, SEND_SMS, BACKGROUND, GET, PERMISSION, CALL
 }
 
 enum class ContentUri(val uri: Uri) {
+  ALL_SMS(Telephony.Sms.CONTENT_URI),
   INBOX(Telephony.Sms.Inbox.CONTENT_URI),
   SENT(Telephony.Sms.Sent.CONTENT_URI),
   DRAFT(Telephony.Sms.Draft.CONTENT_URI),

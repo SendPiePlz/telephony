@@ -5,12 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:platform/platform.dart';
 
-part 'constants.dart';
+//=================================================//
 
+part 'constants.dart';
 part 'filter.dart';
 
-typedef MessageHandler(SmsMessage message);
-typedef SmsSendStatusListener(SendStatus status);
+//=================================================//
+
+typedef MessageHandler = Function(SmsMessage message);
+typedef SmsSendStatusListener = Function(SendStatus status);
 
 void _flutterSmsSetupBackgroundChannel(
     {MethodChannel backgroundChannel =
@@ -36,6 +39,8 @@ void _flutterSmsSetupBackgroundChannel(
 
   backgroundChannel.invokeMethod<void>(BACKGROUND_SERVICE_INITIALIZED);
 }
+
+//=================================================//
 
 ///
 /// A Flutter plugin to use telephony features such as
@@ -153,6 +158,36 @@ class Telephony {
   }
 
   ///
+  /// Query All SMS.
+  ///
+  /// ### Requires READ_SMS permission.
+  ///
+  /// Parameters:
+  ///
+  /// - [columns] (optional) : List of [SmsColumn] to be returned by this query. Defaults to [ SmsColumn.ID, SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE ]
+  /// - [filter] (optional) : [SmsFilter] to filter the results of this query. Works like SQL WHERE clause.
+  /// - [sortOrder] (optional): List of [OrderBy]. Orders the results of this query by the provided columns and order.
+  ///
+  /// Returns:
+  ///
+  /// [Future<List<SmsMessage>>]
+  Future<List<SmsMessage>> getAllSms(
+      {List<SmsColumn> columns = DEFAULT_SMS_COLUMNS,
+      SmsFilter? filter,
+      List<OrderBy>? sortOrder}) async {
+    assert(_platform.isAndroid == true, "Can only be called on Android.");
+    final args = _getArguments(columns, filter, sortOrder);
+
+    final messages =
+        await _foregroundChannel.invokeMethod<List?>(GET_ALL_SMS, args);
+
+    return messages
+            ?.map((message) => SmsMessage.fromMap(message, columns))
+            .toList(growable: false) ??
+        List.empty();
+  }
+
+  ///
   /// Query SMS Inbox.
   ///
   /// ### Requires READ_SMS permission.
@@ -203,8 +238,7 @@ class Telephony {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
     final args = _getArguments(columns, filter, sortOrder);
 
-    final messages =
-        await _foregroundChannel.invokeMethod<List?>(GET_ALL_SENT_SMS, args);
+    final messages = await _foregroundChannel.invokeMethod<List?>(GET_ALL_SENT_SMS, args);
 
     return messages
             ?.map((message) => SmsMessage.fromMap(message, columns))
@@ -243,6 +277,22 @@ class Telephony {
   }
 
   ///
+  ///
+  ///
+  Future<void> markSmsAsRead(SmsMessage message) async {
+    assert(_platform.isAndroid == true, "Can only be called on Android.");
+    final filter = SmsFilter
+      .where(SmsColumn.THREAD_ID)
+      .equals(message.threadId.toString())
+      .and(SmsColumn.READ)
+      .equals(false.toString())
+      .and(SmsColumn.DATE)
+      .lessThanOrEqualTo(message.date.toString());
+    final args = _getArguments([], filter, null);
+    _foregroundChannel.invokeMethod(MARK_SMS_AS_READ, args);
+  }
+
+  ///
   /// Query SMS Inbox.
   ///
   /// ### Requires READ_SMS permission.
@@ -270,7 +320,22 @@ class Telephony {
   }
 
   ///
-  Future<List<Contact>> getContacts({bool includeThumbnail = true}) async {
+  Future<SmsConversation?> getConversationFromPhone(String address) async {
+    assert(_platform.isAndroid == true, "Can only be called on Android.");
+    final filter = SmsFilter.where(SmsColumn.ADDRESS).equals(address);
+    final args = _getArguments(DEFAULT_CONVERSATION_COLUMNS, filter, null);
+
+    final conversation = await _foregroundChannel.invokeMethod<Map?>(
+        GET_CONVERSATION_FROM_PHONE, args);
+    
+    if (conversation != null) {
+      return SmsConversation.fromMap(conversation);
+    }
+    return null;
+  }
+
+  ///
+  Future<List<Contact>> getContacts([bool includeThumbnail = true]) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
     final Map<String, dynamic> args = {"include_thumbnail": includeThumbnail,};
     final contacts = await _foregroundChannel.invokeMethod<List?>(
@@ -283,7 +348,7 @@ class Telephony {
   }
 
   ///
-  Future<Contact?> getContactFromPhone(String phone, {bool includeThumbnail = true}) async {
+  Future<Contact?> getContactFromPhone(String phone, [bool includeThumbnail = true]) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
     final Map<String, dynamic> args = {
       "include_thumbnail": includeThumbnail,

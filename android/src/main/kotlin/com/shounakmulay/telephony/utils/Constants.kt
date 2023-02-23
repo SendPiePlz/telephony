@@ -66,7 +66,8 @@ object Constants {
 
   // Projections
   val DEFAULT_SMS_PROJECTION = listOf(Telephony.Sms._ID, Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE)
-  val DEFAULT_CONVERSATION_PROJECTION = listOf(Telephony.Sms.Conversations.THREAD_ID ,Telephony.Sms.Conversations.SNIPPET, Telephony.Sms.Conversations.MESSAGE_COUNT)
+  val SPECIAL_SMS_PROJECTION = listOf(Telephony.Sms._ID, Telephony.Sms.THREAD_ID, Telephony.Sms.READ, Telephony.Sms.DATE)
+  val DEFAULT_CONVERSATION_PROJECTION = listOf(Telephony.Sms.Conversations.THREAD_ID, Telephony.Sms.Conversations.SNIPPET, Telephony.Sms.Conversations.MESSAGE_COUNT)
   val DEFAULT_CONTACT_PROJECTION = arrayOf(ContactsContract.Contacts._ID, ContactsContract.Data.CONTACT_ID, ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER)
 
   // Strings
