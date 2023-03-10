@@ -174,17 +174,16 @@ class Telephony {
   Future<List<SmsMessage>> getAllSms(
       {List<SmsColumn> columns = DEFAULT_SMS_COLUMNS,
       SmsFilter? filter,
-      List<OrderBy>? sortOrder}) async {
+      List<OrderBy>? sortOrder,
+      int amount = 0}) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
-    final args = _getArguments(columns, filter, sortOrder);
+    final args = _getArguments(columns, filter, sortOrder, amount);
 
-    final messages =
-        await _foregroundChannel.invokeMethod<List?>(GET_ALL_SMS, args);
+    final messages = await _foregroundChannel.invokeMethod<List?>(GET_ALL_SMS, args);
 
     return messages
-            ?.map((message) => SmsMessage.fromMap(message, columns))
-            .toList(growable: false) ??
-        List.empty();
+      ?.map((message) => SmsMessage.fromMap(message, columns))
+       .toList(growable: false) ?? List.empty();
   }
 
   ///
@@ -204,17 +203,16 @@ class Telephony {
   Future<List<SmsMessage>> getInboxSms(
       {List<SmsColumn> columns = DEFAULT_SMS_COLUMNS,
       SmsFilter? filter,
-      List<OrderBy>? sortOrder}) async {
+      List<OrderBy>? sortOrder,
+      int amount = 0}) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
-    final args = _getArguments(columns, filter, sortOrder);
+    final args = _getArguments(columns, filter, sortOrder, amount);
 
-    final messages =
-        await _foregroundChannel.invokeMethod<List?>(GET_ALL_INBOX_SMS, args);
+    final messages = await _foregroundChannel.invokeMethod<List?>(GET_ALL_INBOX_SMS, args);
 
     return messages
-            ?.map((message) => SmsMessage.fromMap(message, columns))
-            .toList(growable: false) ??
-        List.empty();
+      ?.map((message) => SmsMessage.fromMap(message, columns))
+       .toList(growable: false) ?? List.empty();
   }
 
   ///
@@ -234,16 +232,16 @@ class Telephony {
   Future<List<SmsMessage>> getSentSms(
       {List<SmsColumn> columns = DEFAULT_SMS_COLUMNS,
       SmsFilter? filter,
-      List<OrderBy>? sortOrder}) async {
+      List<OrderBy>? sortOrder,
+      int amount = 0}) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
-    final args = _getArguments(columns, filter, sortOrder);
+    final args = _getArguments(columns, filter, sortOrder, amount);
 
     final messages = await _foregroundChannel.invokeMethod<List?>(GET_ALL_SENT_SMS, args);
 
     return messages
-            ?.map((message) => SmsMessage.fromMap(message, columns))
-            .toList(growable: false) ??
-        List.empty();
+      ?.map((message) => SmsMessage.fromMap(message, columns))
+       .toList(growable: false) ?? List.empty();
   }
 
   ///
@@ -263,17 +261,17 @@ class Telephony {
   Future<List<SmsMessage>> getDraftSms(
       {List<SmsColumn> columns = DEFAULT_SMS_COLUMNS,
       SmsFilter? filter,
-      List<OrderBy>? sortOrder}) async {
+      List<OrderBy>? sortOrder,
+      int amount = 0}) async {
     assert(_platform.isAndroid == true, "Can only be called on Android.");
-    final args = _getArguments(columns, filter, sortOrder);
+    final args = _getArguments(columns, filter, sortOrder, amount);
 
     final messages =
         await _foregroundChannel.invokeMethod<List?>(GET_ALL_DRAFT_SMS, args);
 
     return messages
-            ?.map((message) => SmsMessage.fromMap(message, columns))
-            .toList(growable: false) ??
-        List.empty();
+      ?.map((message) => SmsMessage.fromMap(message, columns))
+       .toList(growable: false) ?? List.empty();
   }
 
   ///
@@ -364,7 +362,7 @@ class Telephony {
 
   ///
   Map<String, dynamic> _getArguments(List<_TelephonyColumn> columns,
-      Filter? filter, List<OrderBy>? sortOrder) {
+      Filter? filter, List<OrderBy>? sortOrder, [int? amount = null]) {
     final Map<String, dynamic> args = {};
 
     args["projection"] = columns.map((c) => c._name).toList();
@@ -376,6 +374,10 @@ class Telephony {
 
     if (sortOrder != null && sortOrder.isNotEmpty) {
       args["sort_order"] = sortOrder.map((o) => o._value).join(",");
+    }
+
+    if (amount != null) {
+      args["amount"] = amount;
     }
 
     return args;

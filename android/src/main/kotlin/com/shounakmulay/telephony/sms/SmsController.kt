@@ -66,6 +66,40 @@ class SmsController(private val context: Context) {
         return messages
     }
 
+    // FETCH SOME SMS
+    fun getSomeMessages(
+        contentUri: ContentUri,
+        projection: List<String>,
+        selection: String?,
+        selectionArgs: List<String>?,
+        sortOrder: String?,
+        amount: Int
+    ): List<HashMap<String, String?>> {
+        val messages = mutableListOf<HashMap<String, String?>>()
+        var n = amount
+        val cursor = context.contentResolver.query(
+            contentUri.uri,
+            projection.toTypedArray(),
+            selection,
+            selectionArgs?.toTypedArray(),
+            sortOrder
+        )
+
+        while (cursor != null && cursor.moveToNext() && n > 0) {
+            val dataObject = HashMap<String, String?>(projection.size)
+            for (columnName in cursor.columnNames) {
+                val columnIndex = cursor.getColumnIndex(columnName)
+                if (columnIndex >= 0) {
+                    dataObject[columnName] = cursor.getString(columnIndex)
+                }
+            }
+            messages.add(dataObject)
+            n -= 1
+        }
+        cursor?.close()
+        return messages
+    }
+
     //
     fun getConversationFromPhone(
         selection: String,

@@ -13,6 +13,7 @@ import com.shounakmulay.telephony.PermissionsController
 import com.shounakmulay.telephony.utils.ActionType
 import com.shounakmulay.telephony.utils.Constants
 import com.shounakmulay.telephony.utils.Constants.ADDRESS
+import com.shounakmulay.telephony.utils.Constants.AMOUNT
 import com.shounakmulay.telephony.utils.Constants.BACKGROUND_HANDLE
 import com.shounakmulay.telephony.utils.Constants.CALL_REQUEST_CODE
 import com.shounakmulay.telephony.utils.Constants.DEFAULT_SMS_PROJECTION
@@ -68,6 +69,8 @@ class SmsMethodCallHandler(
   private var selection: String? = null
   private var selectionArgs: List<String>? = null
   private var sortOrder: String? = null
+  private var amount: Int = 0
+
   private var includeThumbnail: Boolean? = false
   private var phone: String? = null
 
@@ -98,6 +101,7 @@ class SmsMethodCallHandler(
         selection = call.argument(SELECTION)
         selectionArgs = call.argument(SELECTION_ARGS)
         sortOrder = call.argument(SORT_ORDER)
+        amount = call.argument(AMOUNT) ?: 0
 
         handleMethod(action, SMS_QUERY_REQUEST_CODE)
       }
@@ -208,9 +212,12 @@ class SmsMethodCallHandler(
       val conversation = smsController.getConversationFromPhone(selection!!, selectionArgs!!)
       result.success(conversation)
     }
+    else if (amount > 0) {
+      val messages = smsController.getSomeMessages(contentUri, projection!!, selection, selectionArgs, sortOrder, amount)
+      result.success(messages)
+    }
     else {
       val messages = smsController.getMessages(contentUri, projection!!, selection, selectionArgs, sortOrder)
-
       result.success(messages)
     }
   }
